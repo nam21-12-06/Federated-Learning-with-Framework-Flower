@@ -1,0 +1,59 @@
+# -----------------------
+# Python
+# -----------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+
+# Virtual Environment
+fl_env/
+venv/
+.env
+
+# -----------------------
+# Dataset
+# -----------------------
+data/
+datasets/
+
+# -----------------------
+# Training outputs
+# -----------------------
+*.png
+results_*.png
+*.pt
+*.pth
+checkpoints/
+logs/
+
+# -----------------------
+# Jupyter
+# -----------------------
+.ipynb_checkpoints/
+
+# -----------------------
+# IDE
+# -----------------------
+.vscode/
+.idea/
+
+# -----------------------
+# OS
+# -----------------------
+.DS_Store
+Thumbs.db
+
+# -----------------------
+# Experiment Tracking
+# -----------------------
+wandb/
+runs/
+tensorboard/
+
+# -----------------------
+# Temporary
+# -----------------------
+*.tmp
+*.log
