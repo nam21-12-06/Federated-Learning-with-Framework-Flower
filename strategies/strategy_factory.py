@@ -13,6 +13,9 @@ def build_strategy(name, min_clients):
         "min_fit_clients":min_clients,
         "min_evaluate_clients":min_clients,
         "min_available_clients":min_clients,
+
+        "on_fit_config_fn": fit_config,
+
         "fit_metrics_aggregation_fn": weighted_average,
         "evaluate_metrics_aggregation_fn":
             weighted_average
@@ -33,3 +36,10 @@ def build_strategy(name, min_clients):
         raise ValueError(
             f"Unknown strategy {name}"
         )
+    
+
+def fit_config(server_round):
+    return {
+        "local_epochs": 2,
+        "lr": 0.001,
+    }

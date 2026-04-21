@@ -92,16 +92,20 @@ class FlowerClient(fl.client.NumPyClient):
     
 if __name__ == "__main__":
     import argparse
-    from dataset import load_datasets
+    from dataset import (load_datasets, load_datasets_label_skew)
 
     # Parse config
     parser = argparse.ArgumentParser(description="Run Flower Client")
     parser.add_argument("--partition-id", type=int, required=True)
+    parser.add_argument("--partition-type", type=str, default="iid", choices=["iid","label_skew"])
     parser.add_argument("--num-clients", type=int, default=2)
     args = parser.parse_args()
 
     print("Downloading data...", flush=True)
-    client_trainsets, client_testsets = load_datasets(args.num_clients)
+    if args.partition_type=="iid":
+        client_trainsets,client_testsets = load_datasets(args.num_clients)
+    else:
+        client_trainsets,client_testsets = load_datasets_label_skew(args.num_clients)
     
     trainset = client_trainsets[args.partition_id]
     testset = client_testsets[args.partition_id]

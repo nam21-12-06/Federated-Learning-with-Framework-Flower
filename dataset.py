@@ -1,6 +1,16 @@
 from torchvision import datasets, transforms
 from torch.utils.data import Subset
 import numpy as np
+import torch
+import random
+
+SEED = 42
+np.random.seed(SEED)
+random.seed(SEED)
+torch.manual_seed(SEED)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(SEED)
+
 
 def load_datasets(num_clients):
     transform = transforms.Compose([transforms.ToTensor()])
@@ -47,3 +57,58 @@ def load_datasets(num_clients):
         client_testsets.append(test_subset)
 
     return client_trainsets, client_testsets
+
+
+def load_datasets_label_skew(num_clients):
+
+    transform = transforms.Compose([
+        transforms.ToTensor()
+    ])
+
+    trainset = datasets.CIFAR10(
+        root="./data",
+        train=True,
+        download=True,
+        transform=transform
+    )
+
+    testset = datasets.CIFAR10(
+        root="./data",
+        train=False,
+        download=True,
+        transform=transform
+    )
+
+    targets_train = np.array(trainset.targets)
+    targets_test = np.array(testset.targets)
+
+    client_trainsets=[]
+    client_testsets=[]
+
+    # mỗi client nhận 2 labels
+    labels_per_client=2
+
+    for i in range(num_clients):
+
+        labels=[
+            (2*i)%10,
+            (2*i+1)%10
+        ]
+
+        train_idx=np.where(
+            np.isin(targets_train,labels)
+        )[0]
+
+        test_idx=np.where(
+            np.isin(targets_test,labels)
+        )[0]
+
+        client_trainsets.append(
+            Subset(trainset,train_idx)
+        )
+
+        client_testsets.append(
+            Subset(testset,test_idx)
+        )
+
+    return client_trainsets,client_testsets
