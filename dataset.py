@@ -112,3 +112,93 @@ def load_datasets_label_skew(num_clients):
         )
 
     return client_trainsets,client_testsets
+
+def load_datasets_dirichlet(num_clients, alpha=0.5):
+    transform = transforms.Compose([transforms.ToTensor()])
+
+    trainset = datasets.CIFAR10(
+        root="./data",
+        train=True,
+        download=True,
+        transform=transform
+    )
+
+    testset = datasets.CIFAR10(
+        root="./data",
+        train=False,
+        download=True,
+        transform=transform
+    )
+
+    y_train=np.array(trainset.targets)
+    y_test=np.array(testset.targets)
+
+    num_classes=10
+
+    client_train_indices=[[] for _ in range(num_clients)]
+    client_test_indices=[[] for _ in range(num_clients)]
+
+    for c in range(num_classes):
+
+        idx=np.where(y_train==c)[0]
+        np.random.shuffle(idx)
+
+        proportions=np.random.dirichlet(
+            alpha*np.ones(num_clients)
+        )
+
+        split_points=(
+            np.cumsum(proportions)*len(idx)
+        ).astype(int)[:-1]
+
+        split_idx=np.split(idx,split_points)
+
+        for i in range(num_clients):
+            client_train_indices[i].extend(
+                split_idx[i]
+            )
+
+
+    # -------- TEST SPLIT --------
+    for c in range(num_classes):
+
+        idx=np.where(y_test==c)[0]
+        np.random.shuffle(idx)
+
+        proportions=np.random.dirichlet(
+            alpha*np.ones(num_clients)
+        )
+
+        split_points=(
+            np.cumsum(proportions)*len(idx)
+        ).astype(int)[:-1]
+
+        split_idx=np.split(idx,split_points)
+
+        for i in range(num_clients):
+            client_test_indices[i].extend(
+                split_idx[i]
+            )
+
+
+    client_trainsets=[]
+    client_testsets=[]
+
+    for i in range(num_clients):
+
+        client_trainsets.append(
+            Subset(
+                trainset,
+                client_train_indices[i]
+            )
+        )
+
+        client_testsets.append(
+            Subset(
+                testset,
+                client_test_indices[i]
+            )
+        )
+
+
+    return (client_trainsets,client_testsets)
