@@ -1,69 +1,74 @@
-# Federated Learning Baseline with Flower + PyTorch
+# Federated Learning Research Framework (Flower + PyTorch)
 
 ## Overview
 
-This project implements a baseline Federated Learning (FL) system using
-Flower and PyTorch for distributed training on CIFAR-10.
+This project implements a modular Federated Learning (FL) framework using Flower and PyTorch, designed for research on:
 
-Currently supported aggregation strategies:
-
-- FedAvg
-- FedProx
-
-This project is designed as a baseline framework for future research on:
-
-- Byzantine-robust aggregation
-- Backdoor defenses
+- Aggregation algorithms
 - Robust federated optimization
-- Custom aggregation algorithms (Krum, Multi-Krum, FLTrust, FLIP, etc.)
+- Byzantine-resilient learning
+
+The framework emphasizes:
+
+- Clean architecture
+- Extensibility
+- Reproducibility
 
 ---
 
 ## What is Federated Learning?
 
-Federated Learning (FL) is a distributed machine learning setting where:
+Federated Learning (FL) is a distributed machine learning paradigm where:
 
-- Multiple clients train locally on private data
-- Clients do not send raw data to the server
-- Clients only send model updates (weights/gradients)
-- A central server aggregates those updates into a global model
+- Clients train locally on private data
+- Raw data never leaves client devices
+- Only model updates are shared
+- A central server aggregates updates
 
-Typical FL workflow:
+Workflow:
 
-1. Server initializes global model
-2. Server sends model to clients
-3. Clients train locally
-4. Clients send updates to server
-5. Server aggregates updates
-6. Repeat for multiple rounds
+1. Server → send global model
+2. Clients → train locally
+3. Clients → send updates
+4. Server → aggregate
+5. Repeat for multiple rounds
 
 ---
 
-## Problem Being Studied
-
-This project studies:
-
-- Distributed training under the Federated Learning setting
-- Effect of aggregation strategies on convergence
-- Comparison between:
+## Implemented Strategies
 
 ### FedAvg
 
-Standard Federated Averaging algorithm.
+Standard Federated Averaging algorithm:
 
-Global update:
-
-w(t+1) = Σ(n_k / N) \* w_k
+$$w^{(t+1)} = \sum \left(\frac{n_k}{N}\right) w_k$$
 
 ---
 
 ### FedProx
 
-FedAvg with proximal regularization to improve training under heterogeneous data.
+Extension of FedAvg to handle heterogeneous data:
 
-Objective:
+$$F_k(w) + \frac{\mu}{2}\|w - w_{global}\|^2$$
 
-F_k(w) + (μ/2)||w - w_global||²
+---
+
+### Krum
+
+Byzantine-robust aggregation algorithm.
+Instead of averaging:
+
+- Computes pairwise distances between client updates
+- Selects the most reliable update
+
+Condition:
+
+$$n \ge 2f + 3$$
+
+Where:
+
+- `n`: number of clients
+- `f`: number of Byzantine clients
 
 ---
 
@@ -73,38 +78,31 @@ Dataset used:
 
 - CIFAR-10
 
-10 image classes:
+Classes:
 
-- airplane
-- automobile
-- bird
-- cat
-- deer
-- dog
-- frog
-- horse
-- ship
-- truck
+- airplane, automobile, bird, cat, deer, dog, frog, horse, ship, truck
 
-Current data partition:
+### Data Distribution
 
-- IID random split across clients
+**IID (default)**
 
-Future work:
+- Random uniform split across clients
 
-- Non-IID Dirichlet split
-- Label-skew partition
+**Dirichlet non-IID**
+
+- Simulates real-world data heterogeneity.
+- Controlled by parameter `alpha`:
+  - small alpha → highly skewed
+  - large alpha → closer to IID
 
 ---
 
 ## Model
 
-Current model:
+Simple CNN architecture:
 
-Simple CNN:
-
-- Conv2d(3,32)
-- Conv2d(32,64)
+- Conv2d(3 → 32)
+- Conv2d(32 → 64)
 - MaxPooling
 - Fully Connected (128)
 - Output layer (10 classes)
@@ -122,14 +120,13 @@ project/
 ├── dataset.py
 
 ├── strategies/
-│   └── strategy_factory.py
+│   ├── strategy_factory.py
+│   └── krum_strategy.py
 
 ├── aggregators/
-│   └── metrics.py
+│   └── krum.py
 
 ├── data/
-│   └── CIFAR10 dataset
-
 └── fl_env/
 ```
 
@@ -137,15 +134,13 @@ project/
 
 ## Installation
 
-Create environment:
+Create virtual environment:
 
 ```bash
 python -m venv fl_env
 ```
 
-Activate:
-
-Windows:
+Activate (Windows):
 
 ```bash
 fl_env\Scripts\activate
@@ -161,118 +156,142 @@ pip install -r requirements.txt
 
 ## Running the Project
 
-## Run Server (FedAvg)
+### Run Server
+
+FedAvg:
 
 ```bash
 python server.py --strategy fedavg
 ```
 
----
-
-## Run Server (FedProx)
+FedProx:
 
 ```bash
 python server.py --strategy fedprox
 ```
 
----
-
-## Custom rounds
+Krum:
 
 ```bash
-python server.py --strategy fedavg --rounds 10
+python server.py --strategy krum --rounds 5 --min_clients 5
 ```
 
----
-
-## Start Clients
-
-Terminal 1:
-
-```bash
-python client.py --partition-id 0 --num-clients 2
-```
-
-Terminal 2:
-
-```bash
-python client.py --partition-id 1 --num-clients 2
-```
+_Note: Krum requires $n \ge 2f + 3$_
 
 ---
 
-## Example with 2 clients
+### Run Clients
 
-Start:
-
-1. Run server
+Example with 5 clients:
 
 ```bash
-python server.py --strategy fedavg
+python client.py --partition-id 0 --num-clients 5
+python client.py --partition-id 1 --num-clients 5
+python client.py --partition-id 2 --num-clients 5
+python client.py --partition-id 3 --num-clients 5
+python client.py --partition-id 4 --num-clients 5
 ```
 
-2. Run Client 0
+---
 
-```bash
-python client.py --partition-id 0 --num-clients 2
+### Using Dirichlet Distribution
+
+In `client.py`, replace dataset loading:
+
+```python
+load_datasets_dirichlet(num_clients, alpha=0.5)
 ```
 
-3. Run Client 1
+Example:
 
-```bash
-python client.py --partition-id 1 --num-clients 2
+```python
+client_trainsets, client_testsets = load_datasets_dirichlet(
+    args.num_clients,
+    alpha=0.5
+)
 ```
 
-Training will run for 5 rounds.
+---
 
-Results saved as:
+## Output
+
+Results are saved as:
 
 ```text
-results_fedavg.png
+results_<strategy>.png
 ```
+
+Includes:
+
+- Loss vs rounds
+- Accuracy vs rounds
+
+---
+
+## Debugging Krum
+
+Example logs:
+
+```text
+[Krum] scores: [12.1, 11.9, 12.3, 12.0, 12.2]
+[Krum] selected client 1
+```
+
+Interpretation:
+
+- Similar scores → consistent clients
+- Large outlier → possible anomaly
+
+---
+
+## Expected Behavior
+
+Without attack:
+
+- FedAvg: stable
+- FedProx: stable
+- Krum: similar to FedAvg
+
+With non-IID data:
+
+- FedProx improves stability
+- Krum may slightly degrade (not optimized for non-IID)
 
 ---
 
 ## Current Features
 
-Implemented:
-
 - FedAvg
 - FedProx
-- Weighted metric aggregation
+- Krum
+- Dirichlet non-IID
 - Distributed evaluation
-- Accuracy/Loss plotting
+- Metric aggregation
+- Plotting
 
 ---
 
 ## Planned Features
 
-Planned:
-
-- Krum
 - Multi-Krum
 - Trimmed Mean
 - FLTrust
 - FLIP
-
-- Byzantine clients
-- Backdoor attack simulation
-- Non-IID partitioning
+- Byzantine attack simulation
+- Backdoor attack
+- Robust aggregation benchmarking
 
 ---
 
 ## Notes
 
-This repository is intended as a research baseline, not a production FL system.
+This project is intended for research purposes:
 
-Current implementation focuses on:
-
-- Simplicity
-- Extensibility
-- Aggregation research
+- Not optimized for production
+- Focused on experimentation and extensibility
 
 ---
 
 ## Author
 
-Federated Learning Research Baseline
+Nguyễn Thái Hoài Nam

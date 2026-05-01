@@ -37,7 +37,9 @@ def plot_metrics(history, strategy_name):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--strategy", type=str, default="fedavg", choices=["fedavg", "fedprox"])
+    parser.add_argument("--strategy", type=str, 
+                        default="fedavg",
+                        choices=["fedavg", "fedprox", "krum"])
     parser.add_argument("--rounds", type=int, default=5)
     parser.add_argument("--min_clients", type=int, default=2)   
     args = parser.parse_args()

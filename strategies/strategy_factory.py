@@ -1,7 +1,7 @@
 import flwr as fl
 
 from aggregators.metrics import weighted_average
-
+from strategies.krum_strategy import KrumStrategy
 
 def build_strategy(name, min_clients):
 
@@ -31,6 +31,9 @@ def build_strategy(name, min_clients):
             **strategy_config,
             proximal_mu=1.0
         )
+    elif name =="krum":
+        return KrumStrategy(f=1,               # Assume 0 byzantine 
+                            **strategy_config)
 
     else:
         raise ValueError(
