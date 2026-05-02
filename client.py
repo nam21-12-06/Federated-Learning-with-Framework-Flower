@@ -2,6 +2,7 @@ import flwr as fl
 import torch
 from torch.utils.data import DataLoader
 from model import Net
+from attacks.sign_flip import SignFlipAttack
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {DEVICE}", flush=True)
@@ -10,11 +11,13 @@ if torch.cuda.is_available():
 
 
 class FlowerClient(fl.client.NumPyClient):
-    def __init__(self, trainset, testset):
+    def __init__(self, trainset, testset, attack = None):
         self.model = Net().to(DEVICE)
 
         self.testloader = DataLoader(testset, batch_size=32, shuffle=False)
         self.trainloader = DataLoader(trainset, batch_size=32, shuffle=True)
+
+        self.attack = attack
 
     # Send update to server
     def get_parameters(self, config):
@@ -60,8 +63,17 @@ class FlowerClient(fl.client.NumPyClient):
 
         print(f"[Client] Train done | Loss: {avg_loss:.4f}", flush=True)
 
+        params = self.get_parameters(config)
+
+        # Use when activate attack
+        if self.attack is not None:
+            # Debug
+            print("[Client] Byzantine attack applied", flush=True)
+            
+            params = self.attack.apply(params)
+
         # Return updated weights, number of samples, metrics (optional)
-        return self.get_parameters(config), len(self.trainloader.dataset), {"train_loss": avg_loss}
+        return params, len(self.trainloader.dataset), {"train_loss": avg_loss}
     
     def evaluate(self, parameters, config):
         """Local Evaluation"""
@@ -101,7 +113,14 @@ if __name__ == "__main__":
     parser.add_argument("--partition-id", type=int, required=True)
     parser.add_argument("--partition-type", type=str, default="iid", choices=["iid","label_skew","dirichlet"])
     parser.add_argument("--num-clients", type=int, default=2)
+    parser.add_argument("--attack", type=str, default="none",
+                        choices=["none", "signflip"])
     args = parser.parse_args()
+
+    attack = None
+    if args.attack == "signflip":
+        attack = SignFlipAttack()
+
 
     print("Downloading data...", flush=True)
     if args.partition_type=="iid":
@@ -118,5 +137,5 @@ if __name__ == "__main__":
     print(f"Connecting Client {args.partition_id} to server...", flush=True)
     fl.client.start_client(
         server_address="127.0.0.1:8080",
-        client=FlowerClient(trainset, testset).to_client(),
+        client=FlowerClient(trainset, testset, attack=attack).to_client(),
     )

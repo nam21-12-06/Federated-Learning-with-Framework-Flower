@@ -4,6 +4,21 @@ import matplotlib.pyplot as plt
 from typing import List, Tuple
 from flwr.common import Metrics
 from strategies.strategy_factory import build_strategy
+import json
+
+# Use for script
+def save_history(history, strategy_name):
+    data = {
+        "loss": [(int(r), float(v)) for r, v in history.losses_distributed],
+        "accuracy": [
+            (int(r), float(v)) 
+            for r, v in history.metrics_distributed.get("accuracy", [])
+        ]
+    }
+
+    with open(f"history_{strategy_name}.json", "w") as f:
+        json.dump(data, f)
+
 
 def plot_metrics(history, strategy_name):
     plt.figure(figsize=(12, 5))
@@ -57,9 +72,12 @@ def main():
         config=fl.server.ServerConfig(num_rounds=args.rounds),
         strategy=strategy,
     )
+    # Optional 
+    save_history(history, args.strategy)
 
     plot_metrics(history, args.strategy)
 
 
 if __name__ == "__main__":
     main()
+
