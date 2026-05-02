@@ -176,7 +176,7 @@ Krum:
 python server.py --strategy krum --rounds 5 --min_clients 5
 ```
 
-_Note: Krum requires $n \ge 2f + 3$_
+_Note: Krum requires n ≥ 2f + 3_
 
 ---
 
