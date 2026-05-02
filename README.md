@@ -72,7 +72,7 @@ Where:
 
 ---
 
-## Dataset
+## Dataset Setup
 
 Dataset used:
 
@@ -81,6 +81,25 @@ Dataset used:
 Classes:
 
 - airplane, automobile, bird, cat, deer, dog, frog, horse, ship, truck
+
+The dataset will be automatically downloaded when running the client for the first time using torchvision.
+
+By default, it will be stored in:
+
+data/
+
+Example:
+
+data/
+└── cifar-10-batches-py/
+
+No manual download is required.
+
+### Custom Data Directory (Optional)
+
+If you want to use a custom data path, modify the dataset loader in:
+
+dataset.py
 
 ### Data Distribution
 
