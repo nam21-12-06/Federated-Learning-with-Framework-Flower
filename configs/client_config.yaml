@@ -1,0 +1,22 @@
+# configs/client_config.yaml
+
+client:
+  batch_size: 32
+  local_epochs: 1
+  learning_rate: 0.001
+
+dataset:
+  name: cifar10
+  num_clients: 5
+  partition_type: iid # iid | label_skew | dirichlet
+  dirichlet_alpha: 0.5
+
+attack:
+  enabled: true
+  type: signflip
+  byzantine_ratio: 0.2
+  params:
+    scale: -1.0
+
+system:
+  device: cpu
