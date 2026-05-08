@@ -1,0 +1,18 @@
+# configs/server_config_krum.yaml
+
+experiment_name: krum_with_attack
+seed: 42
+
+server:
+  strategy: krum
+  rounds: 5
+  min_clients: 5
+  num_clients: 5
+
+strategy_params:
+  f: 1
+
+output:
+  save_history: true
+  save_plot: true
+  save_dir: results/

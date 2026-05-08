@@ -1,0 +1,15 @@
+# configs/server_config_fedavg.yaml
+
+experiment_name: fedavg_with_attack
+seed: 42
+
+server:
+  strategy: fedavg
+  rounds: 5
+  min_clients: 5
+  num_clients: 5
+
+output:
+  save_history: true
+  save_plot: true
+  save_dir: results/

@@ -2,17 +2,20 @@
 
 ## Overview
 
-This project implements a modular Federated Learning (FL) framework using Flower and PyTorch, designed for research on:
+This project implements a modular, configuration-driven Federated Learning (FL) framework using Flower and PyTorch.
+
+It is designed for research on:
 
 - Aggregation algorithms
 - Robust federated optimization
-- Byzantine-resilient learning
+- Byzantine-resilient learning under adversarial attacks
 
 The framework emphasizes:
 
-- Clean architecture
-- Extensibility
-- Reproducibility
+- **Clean Architecture**
+- **Extensibility**
+- **Reproducibility**
+- **Research-oriented experimentation**
 
 ---
 
@@ -25,7 +28,7 @@ Federated Learning (FL) is a distributed machine learning paradigm where:
 - Only model updates are shared
 - A central server aggregates updates
 
-Workflow:
+### Workflow
 
 1. Server → send global model
 2. Clients → train locally
@@ -41,34 +44,62 @@ Workflow:
 
 Standard Federated Averaging algorithm:
 
-$$w^{(t+1)} = \sum \left(\frac{n_k}{N}\right) w_k$$
+$$
+w^{(t+1)} = \sum \left(\frac{n_k}{N}\right) w_k
+$$
 
 ---
 
 ### FedProx
 
-Extension of FedAvg to handle heterogeneous data:
+Extension of FedAvg to better handle heterogeneous (Non-IID) data:
 
-$$F_k(w) + \frac{\mu}{2}\|w - w_{global}\|^2$$
+$$
+F_k(w) + \frac{\mu}{2}\|w - w_{global}\|^2
+$$
 
 ---
 
 ### Krum
 
 Byzantine-robust aggregation algorithm.
-Instead of averaging:
+
+Instead of averaging all updates:
 
 - Computes pairwise distances between client updates
 - Selects the most reliable update
 
-Condition:
+Robustness condition:
 
-$$n \ge 2f + 3$$
+$$
+n \ge 2f + 3
+$$
 
 Where:
 
-- `n`: number of clients
-- `f`: number of Byzantine clients
+- `n` = total number of clients
+- `f` = number of Byzantine clients
+
+---
+
+## Attack Simulation
+
+### Sign-Flip Attack
+
+Implemented Byzantine attack:
+
+- Malicious clients multiply model updates by a negative scale factor
+
+Example:
+
+$$
+w_{attack} = -w
+$$
+
+Purpose:
+
+- Corrupt global aggregation
+- Test robustness of FL aggregation algorithms
 
 ---
 
@@ -76,43 +107,77 @@ Where:
 
 Dataset used:
 
-- CIFAR-10
+- **CIFAR-10**
 
 Classes:
 
-- airplane, automobile, bird, cat, deer, dog, frog, horse, ship, truck
+- airplane
+- automobile
+- bird
+- cat
+- deer
+- dog
+- frog
+- horse
+- ship
+- truck
 
-The dataset will be automatically downloaded when running the client for the first time using torchvision.
-
-By default, it will be stored in:
-
-data/
-
-Example:
-
-data/
-└── cifar-10-batches-py/
+The dataset is automatically downloaded using `torchvision` when running the client for the first time.
 
 No manual download is required.
 
-### Custom Data Directory (Optional)
+By default, data is stored in:
 
-If you want to use a custom data path, modify the dataset loader in:
+```text
+data/
+└── cifar-10-batches-py/
+```
 
-dataset.py
+---
 
-### Data Distribution
+## Data Distribution
 
-**IID (default)**
+### IID
 
 - Random uniform split across clients
 
-**Dirichlet non-IID**
+---
 
-- Simulates real-world data heterogeneity.
-- Controlled by parameter `alpha`:
-  - small alpha → highly skewed
-  - large alpha → closer to IID
+### Label-Skew
+
+- Each client only receives a subset of labels
+
+Example:
+
+- Client 0 → airplane, automobile
+- Client 1 → bird, cat
+
+Used to simulate heterogeneous local datasets.
+
+---
+
+### Dirichlet Non-IID
+
+Simulates realistic non-IID distributions.
+
+Controlled by parameter:
+
+```yaml
+dirichlet_alpha
+```
+
+Interpretation:
+
+- Small alpha → highly skewed
+- Large alpha → closer to IID
+
+Example:
+
+```yaml
+dataset:
+  partition_type: dirichlet
+  dirichlet_alpha: 0.5
+```
 
 ---
 
@@ -120,11 +185,67 @@ dataset.py
 
 Simple CNN architecture:
 
-- Conv2d(3 → 32)
-- Conv2d(32 → 64)
+- Conv2D(3 → 32)
+- Conv2D(32 → 64)
 - MaxPooling
-- Fully Connected (128)
-- Output layer (10 classes)
+- Fully Connected Layer (128)
+- Output Layer (10 classes)
+
+---
+
+## Configuration-Driven Architecture
+
+This project uses YAML configuration files to ensure:
+
+- Reproducibility
+- Cleaner experiments
+- Easy parameter management
+
+The architecture intentionally separates:
+
+- **Server configuration**
+- **Client configuration**
+
+to better mimic real Federated Learning systems.
+
+---
+
+## Example Configuration
+
+### Server Config
+
+```yaml
+server:
+  strategy: krum
+  rounds: 5
+  min_clients: 5
+```
+
+---
+
+### Client Config
+
+```yaml
+client:
+  num_clients: 5
+  batch_size: 32
+  local_epochs: 1
+  learning_rate: 0.001
+```
+
+---
+
+### Attack Config
+
+```yaml
+attack:
+  enabled: true
+  type: signflip
+  byzantine_ratio: 0.2
+
+  params:
+    scale: -1.0
+```
 
 ---
 
@@ -133,20 +254,36 @@ Simple CNN architecture:
 ```text
 project/
 
-├── server.py
-├── client.py
-├── model.py
-├── dataset.py
+├── aggregators/
+│   └── krum.py
+
+├── attacks/
+│   ├── base.py
+│   └── sign_flip.py
+
+├── configs/
+│   ├── fedavg.yaml
+│   └── krum.yaml
+
+├── core/
+│   └── config.py
 
 ├── strategies/
 │   ├── strategy_factory.py
 │   └── krum_strategy.py
 
-├── aggregators/
-│   └── krum.py
+├── utils/
+│   ├── history.py
+│   └── plotting.py
 
 ├── data/
-└── fl_env/
+├── results/
+
+├── client.py
+├── server.py
+├── dataset.py
+├── model.py
+└── run_experiment.py
 ```
 
 ---
@@ -159,7 +296,7 @@ Create virtual environment:
 python -m venv fl_env
 ```
 
-Activate (Windows):
+Activate environment (Windows):
 
 ```bash
 fl_env\Scripts\activate
@@ -175,75 +312,132 @@ pip install -r requirements.txt
 
 ## Running the Project
 
-### Run Server
+## Method 1 — Automated Experiment Runner
+
+Recommended for research experiments.
+
+Run:
+
+```bash
+python run_experiment.py
+```
+
+The script automatically:
+
+- Starts the server
+- Launches clients
+- Waits for completion
+- Saves results
+- Cleans up processes
+
+---
+
+## Method 2 — Manual Execution
+
+Useful for debugging.
+
+---
+
+### Step 1 — Run Server
 
 FedAvg:
 
 ```bash
-python server.py --strategy fedavg
-```
-
-FedProx:
-
-```bash
-python server.py --strategy fedprox
+python server.py configs/fedavg.yaml
 ```
 
 Krum:
 
 ```bash
-python server.py --strategy krum --rounds 5 --min_clients 5
+python server.py configs/krum.yaml
 ```
-
-_Note: Krum requires n ≥ 2f + 3_
 
 ---
 
-### Run Clients
+### Step 2 — Run Clients
 
-Example with 5 clients:
+Open multiple terminals:
 
 ```bash
-python client.py --partition-id 0 --num-clients 5
-python client.py --partition-id 1 --num-clients 5
-python client.py --partition-id 2 --num-clients 5
-python client.py --partition-id 3 --num-clients 5
-python client.py --partition-id 4 --num-clients 5
+python client.py configs/fedavg.yaml --partition-id 0
+```
+
+```bash
+python client.py configs/fedavg.yaml --partition-id 1
+```
+
+```bash
+python client.py configs/fedavg.yaml --partition-id 2
+```
+
+```bash
+python client.py configs/fedavg.yaml --partition-id 3
+```
+
+```bash
+python client.py configs/fedavg.yaml --partition-id 4
 ```
 
 ---
 
-### Using Dirichlet Distribution
+## CLI Override Support
 
-In `client.py`, replace dataset loading:
-
-```python
-load_datasets_dirichlet(num_clients, alpha=0.5)
-```
+Configuration values can also be overridden directly from CLI.
 
 Example:
 
-```python
-client_trainsets, client_testsets = load_datasets_dirichlet(
-    args.num_clients,
-    alpha=0.5
-)
+```bash
+python server.py configs/fedavg.yaml --rounds 10
+```
+
+Priority:
+
+```text
+CLI arguments > YAML config
 ```
 
 ---
 
-## Output
+## Output & Results
 
-Results are saved as:
+Results are automatically saved in:
 
 ```text
+results/
+```
+
+Generated files include:
+
+```text
+history_<strategy>.json
 results_<strategy>.png
 ```
 
-Includes:
+---
 
-- Loss vs rounds
-- Accuracy vs rounds
+### JSON History
+
+Contains:
+
+- Loss history
+- Accuracy history
+- Round-by-round metrics
+
+Useful for:
+
+- Research analysis
+- Plotting
+- Benchmarking
+- Reproducibility
+
+---
+
+### Result Plots
+
+Automatically generated graphs:
+
+- Loss vs Rounds
+- Accuracy vs Rounds
 
 ---
 
@@ -259,22 +453,32 @@ Example logs:
 Interpretation:
 
 - Similar scores → consistent clients
-- Large outlier → possible anomaly
+- Large outlier → possible Byzantine behavior
 
 ---
 
 ## Expected Behavior
 
-Without attack:
+### Without Attack
 
-- FedAvg: stable
-- FedProx: stable
-- Krum: similar to FedAvg
+- FedAvg → stable
+- FedProx → stable
+- Krum → similar to FedAvg
 
-With non-IID data:
+---
 
-- FedProx improves stability
-- Krum may slightly degrade (not optimized for non-IID)
+### With Byzantine Attack
+
+- FedAvg → vulnerable
+- Krum → more robust
+- FedProx → not Byzantine-robust by itself
+
+---
+
+### With Non-IID Data
+
+- FedProx → improved stability
+- Krum → may slightly degrade
 
 ---
 
@@ -283,34 +487,65 @@ With non-IID data:
 - FedAvg
 - FedProx
 - Krum
-- Dirichlet non-IID
+- IID partitioning
+- Label-skew partitioning
+- Dirichlet Non-IID
+- Sign-Flip attack
 - Distributed evaluation
 - Metric aggregation
-- Plotting
+- YAML configuration system
+- CLI override support
+- Experiment automation
+- Result plotting
+- JSON history saving
 
 ---
 
 ## Planned Features
 
+### Robust Aggregation
+
 - Multi-Krum
 - Trimmed Mean
+- Bulyan
 - FLTrust
-- FLIP
-- Byzantine attack simulation
+
+---
+
+### Attack Types
+
 - Backdoor attack
-- Robust aggregation benchmarking
+- Label-flipping attack
+- Adaptive Byzantine attack
+- Gradient poisoning
+
+---
+
+### Engineering Improvements
+
+- TensorBoard integration
+- Checkpoint saving
+- Docker support
+- Multi-GPU training
+- Experiment tracking
+- Logging system
 
 ---
 
 ## Notes
 
-This project is intended for research purposes:
+This framework is intended for:
 
-- Not optimized for production
-- Focused on experimentation and extensibility
+- Research
+- Experimentation
+- Robust FL benchmarking
+
+It is **not optimized for production deployment**.
 
 ---
 
 ## Author
 
 Nguyễn Thái Hoài Nam
+
+Federated Learning Project

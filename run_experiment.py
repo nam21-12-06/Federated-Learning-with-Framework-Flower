@@ -1,156 +1,58 @@
 import subprocess
 import time
-import json
-import os
-import signal
-import matplotlib.pyplot as plt
+import sys
+from core.config import load_config
 
-# =========================
-# CONFIG
-# =========================
-NUM_CLIENTS = 5
-BYZANTINE_IDS = [0]   # có thể mở rộng nhiều client
-ROUNDS = 5
+def run_experiment(server_config_path, client_config_path="configs/client_config.yaml"):
+    server_cfg = load_config(server_config_path)
+    client_cfg = load_config(client_config_path)
 
-STRATEGIES = ["fedavg", "krum"]
+    experiment_name = server_cfg.get("experiment_name", "fl_experiment")
+    print(f"\n===== Running {experiment_name} =====")
 
-RESULT_DIR = "results"
-os.makedirs(RESULT_DIR, exist_ok=True)
+    # 1. Start Server with its own config file
+    print("-> Starting Server...")
+    server_process = subprocess.Popen([
+        sys.executable, "server.py", server_config_path
+    ])
+    
+    # Wait 3 seconds for Server to setup
+    time.sleep(3)
 
+    # 2. Start Clients
+    # Get num_clients from Client config file
+    num_clients = client_cfg["dataset"].get("num_clients", 5)
+    client_processes = []
 
-# =========================
-# PROCESS MANAGEMENT
-# =========================
-def run_server(strategy):
-    return subprocess.Popen(
-        [
-            "python", "server.py",
-            "--strategy", strategy,
-            "--rounds", str(ROUNDS),
-            "--min_clients", str(NUM_CLIENTS),
-        ]
-    )
-
-
-def run_clients():
-    processes = []
-
-    for i in range(NUM_CLIENTS):
+    for i in range(num_clients):
+        print(f"-> Starting Client {i}...")
         cmd = [
-            "python", "client.py",
-            "--partition-id", str(i),
-            "--num-clients", str(NUM_CLIENTS),
+            sys.executable, "client.py",
+            client_config_path,
+            "--partition-id", str(i)
         ]
-
-        if i in BYZANTINE_IDS:
-            cmd += ["--attack", "signflip"]
-
         p = subprocess.Popen(cmd)
-        processes.append(p)
+        client_processes.append(p)
+        time.sleep(1) # Sleep for 1s to avoid bottleneck during data loading
 
-    return processes
-
-
-def wait_processes(processes):
-    for p in processes:
-        p.wait()
-
-
-def shutdown_process(p):
+    # 3. Wait for training to finish
     try:
-        p.send_signal(signal.SIGINT)
-        p.wait(timeout=10)
-    except Exception:
-        p.kill()
+        server_process.wait()
+    except KeyboardInterrupt:
+        print("\n Stopping the system...")
+    finally:
+        # Clean up processes
+        server_process.terminate()
+        for p in client_processes:
+            p.terminate()
+
+    print(f"===== Finished {experiment_name} =====")
 
 
-# =========================
-# EXPERIMENT RUN
-# =========================
-def run_experiment(strategy):
-    print(f"\n===== Running {strategy.upper()} =====")
-
-    # ---- start server ----
-    server = run_server(strategy)
-    time.sleep(5)  # đợi server ổn định
-
-    # ---- start clients ----
-    clients = run_clients()
-
-    # ---- wait clients ----
-    wait_processes(clients)
-
-    # ---- wait server finish ----
-    server.wait()
-
-    print(f"===== Finished {strategy.upper()} =====")
-
-
-# =========================
-# LOAD HISTORY
-# =========================
-def load_history(strategy):
-    path = f"history_{strategy}.json"
-
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"Missing {path}")
-
-    with open(path, "r") as f:
-        return json.load(f)
-
-
-# =========================
-# PLOT COMPARISON
-# =========================
-def plot_compare():
-    fedavg = load_history("fedavg")
-    krum = load_history("krum")
-
-    rounds_fa, acc_fa = zip(*fedavg["accuracy"])
-    rounds_kr, acc_kr = zip(*krum["accuracy"])
-
-    plt.figure(figsize=(8, 5))
-
-    plt.plot(rounds_fa, acc_fa, marker='o', label="FedAvg")
-    plt.plot(rounds_kr, acc_kr, marker='o', label="Krum")
-
-    plt.title("FedAvg vs Krum (Byzantine: SignFlip)")
-    plt.xlabel("Round")
-    plt.ylabel("Accuracy")
-    plt.legend()
-    plt.grid(True)
-
-    save_path = os.path.join(RESULT_DIR, "comparison.png")
-    plt.savefig(save_path)
-    plt.show()
-
-    print(f"Saved plot: {save_path}")
-
-
-# =========================
-# SAVE EXPERIMENT CONFIG
-# =========================
-def save_experiment_config():
-    config = {
-        "num_clients": NUM_CLIENTS,
-        "byzantine_ids": BYZANTINE_IDS,
-        "rounds": ROUNDS,
-        "strategies": STRATEGIES,
-        "attack": "signflip"
-    }
-
-    with open(os.path.join(RESULT_DIR, "experiment_config.json"), "w") as f:
-        json.dump(config, f, indent=4)
-
-
-# =========================
-# MAIN
-# =========================
 if __name__ == "__main__":
-
-    save_experiment_config()
-
-    for strategy in STRATEGIES:
-        run_experiment(strategy)
-
-    plot_compare()
+    # Run your experiments sequentially here
+    run_experiment("configs/server_config_krum.yaml")
+    
+    # Uncomment the lines below to run Krum automatically after FedAvg
+    # time.sleep(5) 
+    # run_experiment("configs/server_config_krum.yaml")

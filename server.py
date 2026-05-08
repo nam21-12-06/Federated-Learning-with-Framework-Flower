@@ -1,83 +1,71 @@
 import argparse
 import flwr as fl
-import matplotlib.pyplot as plt
-from typing import List, Tuple
-from flwr.common import Metrics
+
+from core.config import load_config
 from strategies.strategy_factory import build_strategy
-import json
+from utils.plotting import plot_metrics
+from utils.history import save_history
 
-# Use for script
-def save_history(history, strategy_name):
-    data = {
-        "loss": [(int(r), float(v)) for r, v in history.losses_distributed],
-        "accuracy": [
-            (int(r), float(v)) 
-            for r, v in history.metrics_distributed.get("accuracy", [])
-        ]
-    }
+def parse_args():
+    parser = argparse.ArgumentParser(description="Run Flower Server")
 
-    with open(f"history_{strategy_name}.json", "w") as f:
-        json.dump(data, f)
+    # Config file
+    parser.add_argument(
+        "config",
+        type=str,
+        help="Path to YAML config file (e.g., configs/server_config_krum.yaml)"
+    )
 
+    # Optional CLI overrides
+    parser.add_argument("--rounds", type=int)
+    parser.add_argument("--min_clients", type=int)
+    parser.add_argument("--strategy", type=str)
 
-def plot_metrics(history, strategy_name):
-    plt.figure(figsize=(12, 5))
+    return parser.parse_args()
 
-    # ---- LOSS ----
-    if len(history.losses_distributed) > 0:
-        rounds_loss, values_loss = zip(*history.losses_distributed)
+def apply_overrides(cfg, args):
 
-        plt.subplot(1, 2, 1)
-        plt.plot(rounds_loss, values_loss, marker='o')
-        plt.title(f"{strategy_name} - Loss")
-        plt.xlabel("Round")
-        plt.ylabel("Loss")
-        plt.grid(True)
-
-    # ---- ACCURACY ----
-    if "accuracy" in history.metrics_distributed:
-        rounds_acc, values_acc = zip(*history.metrics_distributed["accuracy"])
-
-        plt.subplot(1, 2, 2)
-        plt.plot(rounds_acc, values_acc, marker='o')
-        plt.title(f"{strategy_name} - Accuracy")
-        plt.xlabel("Round")
-        plt.ylabel("Accuracy")
-        plt.grid(True)
-
-    plt.tight_layout()
-    plt.savefig(f"results_{strategy_name}.png")
-    print(f"Results saved: results_{strategy_name}.png")
-
+    if args.rounds is not None:
+        cfg["server"]["rounds"] = args.rounds
+    if args.min_clients is not None:
+        cfg["server"]["min_clients"] = args.min_clients
+    if args.strategy is not None:
+        cfg["server"]["strategy"] = args.strategy
+    return cfg
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--strategy", type=str, 
-                        default="fedavg",
-                        choices=["fedavg", "fedprox", "krum"])
-    parser.add_argument("--rounds", type=int, default=5)
-    parser.add_argument("--min_clients", type=int, default=2)   
-    args = parser.parse_args()
+    args = parse_args()
+    
+    # Load YAML config
+    cfg = load_config(args.config)
+
+    # Apply CLI override
+    cfg = apply_overrides(cfg, args)
+
+    strategy_name = cfg['server']['strategy']
+    rounds = cfg['server']['rounds']
+    min_clients = cfg['server']['min_clients']
 
     # Strategy
-    strategy = build_strategy(
-    args.strategy,
-    args.min_clients
-)
+    strategy = build_strategy(strategy_name,
+                            min_clients,
+                            **cfg.get("strategy_params", {}))
 
-    print(f"Strategy: {args.strategy.upper()} | Rounds: {args.rounds}")
+    print(f"Strategy: {strategy_name.upper()} | Rounds: {rounds}")
 
     history = fl.server.start_server(
         server_address="0.0.0.0:8080",
-        config=fl.server.ServerConfig(num_rounds=args.rounds),
+        config=fl.server.ServerConfig(num_rounds=rounds),
         strategy=strategy,
     )
-    # Optional 
-    save_history(history, args.strategy)
+    # Save history
+    output_cfg = cfg.get('output', {})
+    if output_cfg.get('save_history', False):
+        save_history(history, strategy_name)
 
-    plot_metrics(history, args.strategy)
+    if output_cfg.get('save_plot', False):
+        plot_metrics(history, strategy_name)
 
 
 if __name__ == "__main__":
     main()
-
