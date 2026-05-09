@@ -1,50 +1,32 @@
-# ======================
-# Python
-# ======================
+# =========================
+# Python & Environment
+# =========================
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
 
-# ======================
-# Virtual Environment
-# ======================
-fl_env/
+# Virtual Environments
 venv/
-.env/
+env/
+fl_env/
+.env
 
-# ======================
-# Dataset
-# ======================
+# =========================
+# Project Specific (Data & Output)
+# =========================
+# Ignore downloaded datasets
 data/
 
-# ======================
-# Experiment Outputs
-# ======================
+# Ignore experiment outputs, plots, and history logs
 results/
+*.json
 *.png
-*.jpg
-*.jpeg
 
-# History logs
-history_*.json
-
-# ======================
-# OS / Editor
-# ======================
+# =========================
+# IDE & OS specific
+# =========================
+.vscode/
+.idea/
 .DS_Store
 Thumbs.db
-
-# VSCode
-.vscode/
-
-# ======================
-# Logs
-# ======================
-*.log
-
-# ======================
-# Temporary files
-# ======================
-*.tmp
-*.bak

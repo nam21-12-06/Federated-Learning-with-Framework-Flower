@@ -5,9 +5,9 @@ seed: 42
 
 server:
   strategy: fedavg
-  rounds: 5
-  min_clients: 5
-  num_clients: 5
+  rounds: 50 #5
+  min_clients: 10 # 5
+  num_clients: 10 # 5
 
 output:
   save_history: true

@@ -12,10 +12,10 @@ It is designed for research on:
 
 The framework emphasizes:
 
-- **Clean Architecture**
-- **Extensibility**
-- **Reproducibility**
-- **Research-oriented experimentation**
+- **Clean Architecture:** Strict separation between Server and Client configurations
+- **Extensibility:** Easy integration of new aggregation strategies and attacks
+- **Reproducibility:** YAML-based experiment management
+- **Research-oriented experimentation:** Automated scripting and dynamic result tracking
 
 ---
 
@@ -77,8 +77,8 @@ $$
 
 Where:
 
-- `n` = total number of clients
-- `f` = number of Byzantine clients
+- `n` = total clients
+- `f` = Byzantine clients
 
 ---
 
@@ -86,20 +86,41 @@ Where:
 
 ### Sign-Flip Attack
 
-Implemented Byzantine attack:
+Malicious clients reverse the optimization direction:
 
-- Malicious clients multiply model updates by a negative scale factor
+$$
+w_{attack} = -1.0 \times w
+$$
+
+Effects:
+
+- Corrupts global aggregation
+- Causes divergence under FedAvg
+- Useful for testing Byzantine robustness
+
+---
+
+### Gaussian Attack
+
+Malicious clients send random Gaussian noise instead of meaningful updates.
+
+Gaussian noise:
+
+$$
+\mathcal{N}(\mu, \sigma^2)
+$$
 
 Example:
 
 $$
-w_{attack} = -w
+w_{attack} = w + \mathcal{N}(0.0, 0.5)
 $$
 
-Purpose:
+Effects:
 
-- Corrupt global aggregation
-- Test robustness of FL aggregation algorithms
+- Destabilizes aggregation
+- Slows convergence
+- Simulates noisy Byzantine behavior
 
 ---
 
@@ -122,22 +143,22 @@ Classes:
 - ship
 - truck
 
-The dataset is automatically downloaded using `torchvision` when running the client for the first time.
+The dataset is automatically downloaded using `torchvision`.
 
-No manual download is required.
-
-By default, data is stored in:
+By default:
 
 ```text
 data/
 └── cifar-10-batches-py/
 ```
 
+No manual download is required.
+
 ---
 
 ## Data Distribution
 
-### IID
+### IID (Default)
 
 - Random uniform split across clients
 
@@ -145,12 +166,12 @@ data/
 
 ### Label-Skew
 
-- Each client only receives a subset of labels
+Each client only receives a subset of labels.
 
 Example:
 
-- Client 0 → airplane, automobile
-- Client 1 → bird, cat
+- Client 0 → airplanes, cars
+- Client 1 → cats, dogs
 
 Used to simulate heterogeneous local datasets.
 
@@ -158,32 +179,24 @@ Used to simulate heterogeneous local datasets.
 
 ### Dirichlet Non-IID
 
-Simulates realistic non-IID distributions.
-
-Controlled by parameter:
+Realistic non-IID distribution controlled by:
 
 ```yaml
 dirichlet_alpha
 ```
 
-Interpretation:
+Behavior:
 
-- Small alpha → highly skewed
-- Large alpha → closer to IID
-
-Example:
-
-```yaml
-dataset:
-  partition_type: dirichlet
-  dirichlet_alpha: 0.5
-```
+- small alpha → highly skewed
+- large alpha → closer to IID
 
 ---
 
 ## Model
 
-Simple CNN architecture:
+Simple CNN architecture intentionally kept lightweight for rapid experimentation.
+
+Architecture:
 
 - Conv2D(3 → 32)
 - Conv2D(32 → 64)
@@ -195,56 +208,65 @@ Simple CNN architecture:
 
 ## Configuration-Driven Architecture
 
-This project uses YAML configuration files to ensure:
-
-- Reproducibility
-- Cleaner experiments
-- Easy parameter management
-
-The architecture intentionally separates:
-
-- **Server configuration**
-- **Client configuration**
-
-to better mimic real Federated Learning systems.
-
----
-
-## Example Configuration
+This framework uses separated YAML configuration files.
 
 ### Server Config
+
+Controls:
+
+- aggregation strategy
+- communication rounds
+- aggregation parameters
+- result saving
+
+Example:
 
 ```yaml
 server:
   strategy: krum
   rounds: 5
   min_clients: 5
+
+strategy_params:
+  f: 1
+
+output:
+  save_history: true
+  save_plot: true
+  save_dir: results/
 ```
 
 ---
 
 ### Client Config
 
+Controls:
+
+- local training
+- dataset partitioning
+- attack behavior
+
+Example:
+
 ```yaml
 client:
-  num_clients: 5
   batch_size: 32
   local_epochs: 1
   learning_rate: 0.001
-```
 
----
+dataset:
+  name: cifar10
+  num_clients: 5
+  partition_type: iid
 
-### Attack Config
-
-```yaml
 attack:
   enabled: true
-  type: signflip
+  type: gaussian
   byzantine_ratio: 0.2
 
   params:
-    scale: -1.0
+    mean: 0.0
+    std: 0.5
 ```
 
 ---
@@ -254,36 +276,21 @@ attack:
 ```text
 project/
 
-├── aggregators/
-│   └── krum.py
+├── aggregators/          # Aggregation math and logic
+├── attacks/              # Byzantine attack simulations
+├── configs/              # YAML configuration files
+├── core/                 # Core utilities
+├── strategies/           # FL strategy implementations
+├── utils/                # Plotting and history saving
 
-├── attacks/
-│   ├── base.py
-│   └── sign_flip.py
+├── data/                 # Auto-downloaded datasets
+├── results/              # Experiment outputs
 
-├── configs/
-│   ├── fedavg.yaml
-│   └── krum.yaml
-
-├── core/
-│   └── config.py
-
-├── strategies/
-│   ├── strategy_factory.py
-│   └── krum_strategy.py
-
-├── utils/
-│   ├── history.py
-│   └── plotting.py
-
-├── data/
-├── results/
-
-├── client.py
-├── server.py
-├── dataset.py
-├── model.py
-└── run_experiment.py
+├── client.py             # FL Client
+├── server.py             # FL Server
+├── dataset.py            # Dataset partitioning
+├── model.py              # CNN architecture
+└── run_experiment.py     # Automated experiment runner
 ```
 
 ---
@@ -312,11 +319,9 @@ pip install -r requirements.txt
 
 ## Running the Project
 
-## Method 1 — Automated Experiment Runner
+## Method 1 — Automated Runner
 
-Recommended for research experiments.
-
-Run:
+Run experiments automatically:
 
 ```bash
 python run_experiment.py
@@ -324,78 +329,52 @@ python run_experiment.py
 
 The script automatically:
 
-- Starts the server
-- Launches clients
-- Waits for completion
-- Saves results
-- Cleans up processes
+- launches server
+- launches all clients
+- saves plots
+- saves JSON histories
+- terminates processes safely
 
 ---
 
 ## Method 2 — Manual Execution
 
-Useful for debugging.
-
----
-
-### Step 1 — Run Server
-
-FedAvg:
+### Step 1 — Start Server
 
 ```bash
-python server.py configs/fedavg.yaml
-```
-
-Krum:
-
-```bash
-python server.py configs/krum.yaml
+python server.py configs/server_config_fedavg.yaml \
+--experiment-name fedavg_gaussian_attack
 ```
 
 ---
 
-### Step 2 — Run Clients
+### Step 2 — Start Clients
 
 Open multiple terminals:
 
 ```bash
-python client.py configs/fedavg.yaml --partition-id 0
+python client.py configs/client_gaussian.yaml --partition-id 0
+
+python client.py configs/client_gaussian.yaml --partition-id 1
+
+python client.py configs/client_gaussian.yaml --partition-id 2
+
+python client.py configs/client_gaussian.yaml --partition-id 3
+
+python client.py configs/client_gaussian.yaml --partition-id 4
 ```
 
-```bash
-python client.py configs/fedavg.yaml --partition-id 1
-```
+### Method 3 — CLI Overrides (Advanced Manual Execution)
 
-```bash
-python client.py configs/fedavg.yaml --partition-id 2
-```
+The framework supports a **Hybrid Configuration System**. You can override specific YAML parameters directly from the command line for rapid testing and debugging without modifying the configuration files.
 
-```bash
-python client.py configs/fedavg.yaml --partition-id 3
-```
+**Priority Rule:** `CLI Arguments > YAML Config`
 
-```bash
-python client.py configs/fedavg.yaml --partition-id 4
-```
+**Example: Overriding Server Parameters**
+If your `server_config_fedavg.yaml` defines 5 rounds, but you want to quickly test it for 10 rounds with 3 clients, you can override these values directly:
 
----
-
-## CLI Override Support
-
-Configuration values can also be overridden directly from CLI.
-
-Example:
-
-```bash
-python server.py configs/fedavg.yaml --rounds 10
-```
-
-Priority:
-
-```text
-CLI arguments > YAML config
-```
-
+````bash
+python server.py configs/server_config_fedavg.yaml --rounds 10 --min_clients 3 --experiment-name fedavg_10_rounds_quick_test
 ---
 
 ## Output & Results
@@ -404,37 +383,37 @@ Results are automatically saved in:
 
 ```text
 results/
-```
+````
 
-Generated files include:
+Generated files:
 
 ```text
-history_<strategy>.json
-results_<strategy>.png
+results/history_fedavg_gaussian_attack.json
+
+results/results_fedavg_gaussian_attack.png
 ```
 
 ---
 
-### JSON History
+## JSON History
 
 Contains:
 
-- Loss history
-- Accuracy history
-- Round-by-round metrics
+- loss history
+- accuracy history
+- round-by-round metrics
 
 Useful for:
 
-- Research analysis
-- Plotting
-- Benchmarking
-- Reproducibility
+- benchmarking
+- custom plotting
+- research analysis
 
 ---
 
-### Result Plots
+## Result Plots
 
-Automatically generated graphs:
+Automatically generated:
 
 - Loss vs Rounds
 - Accuracy vs Rounds
@@ -447,13 +426,14 @@ Example logs:
 
 ```text
 [Krum] scores: [12.1, 11.9, 12.3, 12.0, 12.2]
+
 [Krum] selected client 1
 ```
 
 Interpretation:
 
-- Similar scores → consistent clients
-- Large outlier → possible Byzantine behavior
+- Similar scores → honest clients
+- Large outlier → possible Byzantine client
 
 ---
 
@@ -467,18 +447,24 @@ Interpretation:
 
 ---
 
-### With Byzantine Attack
+### Under Byzantine Attack
 
-- FedAvg → vulnerable
-- Krum → more robust
-- FedProx → not Byzantine-robust by itself
+#### FedAvg
 
----
+- highly vulnerable
+- unstable convergence
+- fluctuating loss
 
-### With Non-IID Data
+#### Krum
 
-- FedProx → improved stability
-- Krum → may slightly degrade
+- more robust
+- filters malicious updates
+- restores stability
+
+#### FedProx
+
+- helps Non-IID training
+- not Byzantine-robust by itself
 
 ---
 
@@ -487,17 +473,15 @@ Interpretation:
 - FedAvg
 - FedProx
 - Krum
+- Sign-Flip attack
+- Gaussian attack
 - IID partitioning
 - Label-skew partitioning
-- Dirichlet Non-IID
-- Sign-Flip attack
-- Distributed evaluation
-- Metric aggregation
+- Dirichlet Non-IID partitioning
 - YAML configuration system
-- CLI override support
-- Experiment automation
-- Result plotting
+- Automated experiment runner
 - JSON history saving
+- Plot generation
 
 ---
 
@@ -528,7 +512,6 @@ Interpretation:
 - Docker support
 - Multi-GPU training
 - Experiment tracking
-- Logging system
 
 ---
 
@@ -536,11 +519,11 @@ Interpretation:
 
 This framework is intended for:
 
-- Research
-- Experimentation
-- Robust FL benchmarking
+- research
+- experimentation
+- robust FL benchmarking
 
-It is **not optimized for production deployment**.
+It is not optimized for production deployment.
 
 ---
 
@@ -548,4 +531,4 @@ It is **not optimized for production deployment**.
 
 Nguyễn Thái Hoài Nam
 
-Federated Learning Project
+Federated Learning Research Project

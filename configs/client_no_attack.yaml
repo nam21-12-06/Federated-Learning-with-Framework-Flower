@@ -1,0 +1,16 @@
+client:
+  batch_size: 32
+  local_epochs: 1
+  learning_rate: 0.001
+
+dataset:
+  name: cifar10
+  num_clients: 5
+  partition_type: iid
+  dirichlet_alpha: 0.5
+
+attack:
+  enabled: false
+
+system:
+  device: cpu
