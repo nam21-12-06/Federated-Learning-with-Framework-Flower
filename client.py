@@ -3,6 +3,7 @@ import torch
 from torch.utils.data import DataLoader
 from model import Net
 from attacks.sign_flip import SignFlipAttack
+from attacks.gaussian import GaussianAttack
 from core.config import load_config
 
 
@@ -133,10 +134,17 @@ if __name__ == "__main__":
         num_byzantine = int(num_clients * byzantine_ratio)
         is_byzantine = args.partition_id < num_byzantine
 
+        # Sign flip attack
         if is_byzantine and attack_type == "signflip":
             scale = cfg["attack"]["params"]["scale"]
             attack = SignFlipAttack(scale=scale)
             print(f"[Client {args.partition_id}] Byzantine SignFlip enabled", flush=True)
+        # Gaussian attack
+        elif attack == "gaussian":
+            mean = cfg["attack"]["params"].get("mean", 0.0)
+            std = cfg["attack"]["params"].get("std", 1.0)
+            attack = GaussianAttack(mean=mean, std=std)
+            print(f"[Client {args.partition_id}] Byzantine Gaussian Attack enabled (mean={mean}, std={std})", flush=True)
 
 
     print("Downloading data...", flush=True)

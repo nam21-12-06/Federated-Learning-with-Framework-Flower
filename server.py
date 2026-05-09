@@ -21,6 +21,8 @@ def parse_args():
     parser.add_argument("--min_clients", type=int)
     parser.add_argument("--strategy", type=str)
 
+    parser.add_argument("--experiment-name", type=str, default="fl_experiment", help="Name of the experiment for saving plots")
+
     return parser.parse_args()
 
 def apply_overrides(cfg, args):
@@ -46,6 +48,8 @@ def main():
     rounds = cfg['server']['rounds']
     min_clients = cfg['server']['min_clients']
 
+    experiment_name = args.experiment_name
+
     # Strategy
     strategy = build_strategy(strategy_name,
                             min_clients,
@@ -60,11 +64,14 @@ def main():
     )
     # Save history
     output_cfg = cfg.get('output', {})
+    
+    save_dir = output_cfg.get('save_dir', 'results/') 
+
     if output_cfg.get('save_history', False):
-        save_history(history, strategy_name)
+        save_history(history, experiment_name, save_dir) 
 
     if output_cfg.get('save_plot', False):
-        plot_metrics(history, strategy_name)
+        plot_metrics(history, experiment_name, save_dir) 
 
 
 if __name__ == "__main__":

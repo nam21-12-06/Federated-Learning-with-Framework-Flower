@@ -3,23 +3,38 @@ import time
 import sys
 from core.config import load_config
 
-def run_experiment(server_config_path, client_config_path="configs/client_config.yaml"):
+def run_experiment(server_config_path, client_config_path="configs/client_no_attack.yaml"):
     server_cfg = load_config(server_config_path)
     client_cfg = load_config(client_config_path)
 
-    experiment_name = server_cfg.get("experiment_name", "fl_experiment")
-    print(f"\n===== Running {experiment_name} =====")
+    # 1. GENERATE DYNAMIC EXPERIMENT NAME
+    strategy_name = server_cfg["server"]["strategy"]
+    
+    # Check if attack is enabled in client config safely
+    is_attack_enabled = client_cfg.get("attack", {}).get("enabled", False)
+    
+    if is_attack_enabled:
+        attack_type = client_cfg["attack"].get("type", "unknown_attack")
+        experiment_name = f"{strategy_name}_{attack_type}_attack"
+    else:
+        experiment_name = f"{strategy_name}_no_attack"
 
-    # 1. Start Server with its own config file
+    print(f"\n{'='*50}")
+    print(f" RUNNING EXPERIMENT: {experiment_name.upper()}")
+    print(f"{'='*50}")
+
+    # 2. START SERVER WITH DYNAMIC EXPERIMENT NAME
     print("-> Starting Server...")
     server_process = subprocess.Popen([
-        sys.executable, "server.py", server_config_path
+        sys.executable, "server.py", 
+        server_config_path,
+        "--experiment-name", experiment_name  # <-- Passing the combined name here
     ])
     
     # Wait 3 seconds for Server to setup
     time.sleep(3)
 
-    # 2. Start Clients
+    # 3. START CLIENTS
     # Get num_clients from Client config file
     num_clients = client_cfg["dataset"].get("num_clients", 5)
     client_processes = []
@@ -35,7 +50,7 @@ def run_experiment(server_config_path, client_config_path="configs/client_config
         client_processes.append(p)
         time.sleep(1) # Sleep for 1s to avoid bottleneck during data loading
 
-    # 3. Wait for training to finish
+    # 4. WAIT FOR TRAINING TO FINISH
     try:
         server_process.wait()
     except KeyboardInterrupt:
@@ -50,9 +65,27 @@ def run_experiment(server_config_path, client_config_path="configs/client_config
 
 
 if __name__ == "__main__":
-    # Run your experiments sequentially here
-    run_experiment("configs/server_config_krum.yaml")
-    
-    # Uncomment the lines below to run Krum automatically after FedAvg
-    # time.sleep(5) 
-    # run_experiment("configs/server_config_krum.yaml")
+
+    # Scene 1 : FedAvg without attack (Baseline)
+    # run_experiment(
+    #     server_config_path="configs/server_config_fedavg.yaml", 
+    #     client_config_path="configs/client_no_attack.yaml"
+    # )
+
+    # Scene 2 : FedAvg with attack Sign-Flip
+    # run_experiment(
+    #     server_config_path="configs/server_config_fedavg.yaml", 
+    #     client_config_path="configs/client_signflip.yaml"
+    # )
+
+    # Scene 3 : FedAvg with attack Gaussian
+    run_experiment(
+        server_config_path="configs/server_config_fedavg.yaml", 
+        client_config_path="configs/client_gaussian.yaml"
+    )
+
+    # Scene 4 : Krum defense Gaussian
+    # run_experiment(
+    #     server_config_path="configs/server_config_krum.yaml", 
+    #     client_config_path="configs/client_gaussian.yaml"
+    # )
